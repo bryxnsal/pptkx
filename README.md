@@ -1,130 +1,139 @@
-# pptk - Point Processing Toolkit
+# pptk-wayland (Point Processing Toolkit)
 
-Copyright (C) 2011-2018 HERE Europe B.V.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Platform: Wayland](https://img.shields.io/badge/display-Wayland%20Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 
-The Point Processing Toolkit (pptk) is a Python package for visualizing and processing 2-d/3-d point clouds.
+**pptk-wayland** is an actively maintained modernization and fork of the original Point Processing Toolkit (`pptk` by HERE Europe B.V.).
 
-At present, pptk consists of the following features.
+It provides a high-performance 2D/3D point cloud viewer and spatial processing algorithms tailored for modern Linux desktops, featuring **100% native Wayland support**, compatibility with **Python 3.8 through 3.12+**, and support for **NumPy 2.x**.
 
-* A 3-d point cloud viewer that
-  - accepts any 3-column numpy array as input,
-  - renders tens of millions of points interactively using an octree-based level of detail mechanism,
-  - supports point selection for inspecting and annotating point data.
-* A fully parallelized point k-d tree that supports k-nearest neighbor queries and r-near range queries
-  (both build and queries have been parallelized).
-* A normal estimation routine based on principal component analysis of point cloud neighborhoods.
+---
 
-[Homepage](https://heremaps.github.io/pptk/index.html)
+## ✨ Key Improvements over Legacy pptk
+
+* 🚀 **100% Native Wayland Support**:
+  - Replaced bundled, outdated Qt 5.6 X11/XCB libraries with native system Qt5 (`qt5-wayland`).
+  - Implemented robust EGL/OpenGL context initialization using `QOffscreenSurface` to prevent Wayland surface creation race conditions and segfaults before window mapping.
+  - Zero requirement for Xwayland or legacy XCB platform plugins.
+* 🐍 **Modern Python Support**:
+  - Full support for Python 3.8, 3.9, 3.10, 3.11, and 3.12+.
+  - Upgraded C-API to NumPy 2.x with backwards compatibility for NumPy 1.x.
+  - Replaced deprecated `ndarray.tostring()` calls with `ndarray.tobytes()`.
+* ⚡ **Modern Threading (oneTBB)**:
+  - Migrated KD-Tree multithreading from obsolete `tbb::task` and `task_scheduler_init` to modern oneTBB `tbb::task_group`.
+* 📦 **Modern PEP 517 / PEP 518 Packaging**:
+  - Standard `pyproject.toml` and CMake build backend.
+  - Seamless installation with both `uv` and `pip`.
+
+---
+
+## 📸 Overview
 
 ![pptk screenshots](/docs/source/tutorials/viewer/images/tutorial_banner.png)
 
-The screenshots above show various point datasets visualized using pptk.
-The `bildstein1` Lidar point cloud from Semantic3D (left),
-Beijing GPS trajectories from Geolife (middle left),
-`DistrictofColumbia.geojson` 2-d polygons from US building footprints (middle right),
-and a Mobius strip (right).
-For details, see the [tutorials](https://heremaps.github.io/pptk/tutorial.html).
+* **3D Point Cloud Viewer**:
+  - Accepts any $N \times 3$ numpy array as input.
+  - Renders tens of millions of points interactively using octree-based level-of-detail (LOD).
+  - Supports interactive point selection, bounding boxes, attribute color maps, and camera dollies.
+* **Parallel k-d Tree**:
+  - Accelerated k-nearest neighbor (k-NN) queries and radius-based range queries using oneTBB.
+* **PCA Normal Estimation**:
+  - Fast normal vector calculation and curvature estimation from point cloud neighborhoods.
 
-## License
+---
 
-Unless otherwise noted in `LICENSE` files for specific files or directories,
-the [LICENSE](LICENSE) in the root applies to all content in this repository.
+## 🛠️ System Requirements (Linux)
 
-## Install
+Ensure you have the development libraries and C++17 compiler installed:
 
-One can either install pptk directly from PyPI
-
-```
->> pip install pptk
-```
-
-or from the .whl file that results from [building pptk from source](#build).
-
-```
->> pip install <.whl file>
+### Arch Linux / Manjaro
+```bash
+sudo pacman -S base-devel cmake ninja qt5-base qt5-wayland onetbb eigen
 ```
 
-## Quickstart
-
-In Python, generate 100 random 3-d points.
-
-```
->> import numpy as np
->> x = np.random.rand(100, 3)
+### Ubuntu / Debian (22.04+)
+```bash
+sudo apt update
+sudo apt install build-essential cmake ninja-build qtbase5-dev qtwayland5 libtbb-dev libeigen3-dev
 ```
 
-Visualize.
-
-```
->> import pptk
->> v = pptk.viewer(x)
+### Fedora
+```bash
+sudo dnf install gcc-c++ cmake ninja-build qt5-qtbase-devel qt5-qtwayland-devel tbb-devel eigen3-devel
 ```
 
-Set point size to 0.01.
+---
 
-```
->> v.set(point_size=0.01)
-```
+## 📦 Installation
 
-For more advanced examples, see [tutorials](https://heremaps.github.io/pptk/tutorial.html).
+### Using `uv` (Recommended)
 
-## Build
-
-We provide CMake scripts for automating most of the build process, but ask the
-user to manually prepare [dependencies](#requirements) and record their paths
-in the following CMake cache variables.
-
-* `Numpy_INCLUDE_DIR`
-* `PYTHON_INCLUDE_DIR`
-* `PYTHON_LIBRARY`
-* `Eigen_INCLUDE_DIR`
-* `TBB_INCLUDE_DIR`
-* `TBB_tbb_LIBRARY`
-* `TBB_tbb_RUNTIME`
-* `TBB_tbbmalloc_LIBRARY`
-* `TBB_tbbmalloc_RUNTIME`
-* `Qt5_DIR`
-
-To set these variables, either use one of CMake's GUIs (ccmake or cmake-gui),
-or provide an initial CMakeCache.txt in the target build folder
-(for examples of initial cache files, see the CMakeCache.<platform>.txt files)
-
-##### Requirements
-
-Listed are versions of libraries used to develop pptk, though earlier versions
-of these libraries may also work.
-
-* [QT](https://www.qt.io/) 5.4
-* [TBB](https://www.threadingbuildingblocks.org/) 4.3
-* [Eigen](http://eigen.tuxfamily.org) 3.2.9
-* [Python](https://www.python.org/) 2.7+ or 3.6+
-* [Numpy](http://www.numpy.org/) 1.13
-
-##### Windows
-
-1. Create an empty build folder
-
-```
->> mkdir <build_folder>
+From git:
+```bash
+uv pip install git+https://github.com/bryxnsal/pptk-wayland.git
 ```
 
-2. Create an initial CMakeCache.txt under <build_folder> and use it to provide
-values for the CMake cache variables listed above. (e.g. see CMakeCache.win.txt)
-
-3. Type the following...
-
-```
->> cd <build_folder>
->> cmake -G "NMake Makefiles" <source_folder>
->> nmake
->> python setup.py bdist_wheel
->> pip install dist\<.whl file>
+Or clone and install locally:
+```bash
+git clone https://github.com/bryxnsal/pptk-wayland.git
+cd pptk-wayland
+uv pip install .
 ```
 
-##### Linux
+### Using standard `pip`
 
-Similar to building on Windows.
+```bash
+git clone https://github.com/bryxnsal/pptk-wayland.git
+cd pptk-wayland
+pip install .
+```
 
-##### Mac
+---
 
-Similar to building on Windows.
+## 🚀 Quickstart
+
+```python
+import numpy as np
+import pptk
+
+# Generate 100,000 random 3D points
+points = np.random.rand(100000, 3)
+
+# Launch native Wayland viewer
+v = pptk.viewer(points)
+
+# Adjust point size
+v.set(point_size=0.005)
+
+# Color points by height (Z axis)
+v.attributes(points[:, 2])
+
+# Set camera focus position
+v.set(lookat=[0.5, 0.5, 0.5])
+```
+
+---
+
+## 🏗️ Development & Building from Source
+
+Create a virtual environment with `uv` and install dependencies:
+
+```bash
+# Create environment with Python 3.12
+uv venv --python 3.12
+source .venv/bin/activate
+
+# Install build dependencies
+uv pip install numpy cmake ninja setuptools wheel build
+
+# Build and install in editable/development mode
+pip install --no-build-isolation -e .
+```
+
+---
+
+## 📄 License
+
+The original `pptk` project was developed by HERE Europe B.V. and released under the MIT License.
+All modern Wayland adaptations and updates in this repository remain under the **MIT License**. See [LICENSE](LICENSE) for details.
