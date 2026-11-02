@@ -72,7 +72,6 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
-          modules: 'qtnetwork qtwidgets'
 
       - name: Install vcpkg dependencies (oneTBB, Eigen3)
         run: |
