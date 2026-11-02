@@ -275,7 +275,7 @@ class Viewer : public QWindow, protected OpenGLFuncs {
     Q_UNUSED(ev);
     _camera.setAspectRatio((float)width() / height());
     _context->makeCurrent(this);
-    glViewport(0, 0, width(), height());
+    glViewport(0, 0, width() * devicePixelRatio(), height() * devicePixelRatio());
     _context->doneCurrent();
   }
 
@@ -868,6 +868,7 @@ class Viewer : public QWindow, protected OpenGLFuncs {
 
   void renderPoints() {
     if (!_context->makeCurrent(this)) return;
+    glViewport(0, 0, width() * devicePixelRatio(), height() * devicePixelRatio());
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);

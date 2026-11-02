@@ -6,8 +6,10 @@
 #include "Python.h"
 #include "arrayobject.h"
 
+#if NPY_ABI_VERSION < 0x02000000
 #ifndef PyDataType_ELSIZE
 #define PyDataType_ELSIZE(descr) ((descr)->elsize)
+#endif
 #endif
 
 struct Array2D {
