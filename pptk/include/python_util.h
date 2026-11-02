@@ -6,6 +6,10 @@
 #include "Python.h"
 #include "arrayobject.h"
 
+#ifndef PyDataType_ELSIZE
+#define PyDataType_ELSIZE(descr) ((descr)->elsize)
+#endif
+
 struct Array2D {
   const unsigned char* data;
   std::vector<std::uint8_t> scalar;
