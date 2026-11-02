@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0", "wheel", "cmake>=3.16", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pptk"
+name = "pptkx"
 version = "0.1.2"
 description = "A Python package for 3D point cloud visualization and processing with native Wayland support."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "HERE Europe B.V." },
     { name = "Bryan Salazar" }

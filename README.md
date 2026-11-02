@@ -1,16 +1,16 @@
-# pptk-wayland (Point Processing Toolkit)
+# pptkx (Point Processing Toolkit Extended)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Platform: Wayland](https://img.shields.io/badge/display-Wayland%20Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 
-**pptk-wayland** is an actively maintained modernization and fork of the original Point Processing Toolkit (`pptk` by HERE Europe B.V.).
+**pptkx** (formerly pptk-wayland) is an actively maintained modernization and fork of the original Point Processing Toolkit (`pptk` by HERE Europe B.V.).
 
 It provides a high-performance 2D/3D point cloud viewer and spatial processing algorithms tailored for modern Linux desktops, featuring **100% native Wayland support**, compatibility with **Python 3.8 through 3.12+**, and support for **NumPy 2.x**.
 
 ---
 
-## ✨ Key Improvements over Legacy pptk
+## ✨ Key Improvements in pptkx
 
 * 🚀 **100% Native Wayland Support**:
   - Replaced bundled, outdated Qt 5.6 X11/XCB libraries with native system Qt5 (`qt5-wayland`).
@@ -71,6 +71,8 @@ sudo dnf install gcc-c++ cmake ninja-build qt5-qtbase-devel qt5-qtwayland-devel 
 
 From git:
 ```bash
+uv pip install pptkx
+# or from git:
 uv pip install git+https://github.com/bryxnsal/pptk-wayland.git
 ```
 
@@ -78,7 +80,9 @@ Or clone and install locally:
 ```bash
 git clone https://github.com/bryxnsal/pptk-wayland.git
 cd pptk-wayland
-uv pip install .
+uv pip install pptkx
+# or locally:
+pip install .
 ```
 
 ### Using standard `pip`
@@ -86,6 +90,8 @@ uv pip install .
 ```bash
 git clone https://github.com/bryxnsal/pptk-wayland.git
 cd pptk-wayland
+pip install pptkx
+# or locally:
 pip install .
 ```
 

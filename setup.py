@@ -99,7 +99,7 @@ class CMakeBuild(build_ext):
             shutil.copy2(viewer_bin, dest)
 
 setup(
-    name='pptk',
+    name='pptkx',
     version='0.1.2',
     description='A Python package for 3D point cloud visualization and processing with native Wayland support.',
     author='HERE Europe B.V., modern Wayland fork maintained by Bryan Salazar',
