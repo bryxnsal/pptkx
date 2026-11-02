@@ -10,5 +10,8 @@ else()
   set(Numpy_INCLUDE_DIR "${_np_dir}")
 endif()
 
+find_path(Numpy_INCLUDE_DIR NAMES numpy/arrayobject.h PATHS ${Numpy_INCLUDE_DIR})
+set(Numpy_INCLUDE_DIRS "${Numpy_INCLUDE_DIR}" "${Numpy_INCLUDE_DIR}/numpy")
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Numpy REQUIRED_VARS Numpy_INCLUDE_DIR)

@@ -15,8 +15,7 @@
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
-#include "tbb/task.h"
-#include "tbb/task_scheduler_init.h"
+#include "tbb/task_group.h"
 inline void* Allocate(size_t size) { return scalable_malloc(size); }
 inline void Free(void* ptr) { return scalable_free(ptr); }
 #else
@@ -628,6 +627,54 @@ void SerializeHelper(std::vector<SmallNode<T> >& buf, int node_index,
 
 #ifdef USE_TBB
 template <typename T, int dim>
+void ParallelBuildHelper(Node<T>*& node, int begin_index, int end_index,
+                         std::vector<int>& indices, Box<T, dim> node_box,
+                         const T* points, int num_points,
+                         const pointkd::BuildParams& build_params,
+                         tbb::task_group& tg) {
+  int node_size = end_index - begin_index;
+  if (node_size < build_params.serial_cutoff) {
+    node = RecursiveBuildHelper<T, dim>(begin_index, end_index, indices,
+                                         node_box, points, num_points,
+                                         build_params);
+    return;
+  }
+  Node<T>* current_node = NULL;
+  node = MakeNode<T, dim>(current_node, begin_index, end_index, indices,
+                          node_box, points, num_points, build_params);
+  if (!current_node) return;
+
+  T split_value = current_node->split_value;
+  int split_index = current_node->split_index;
+  int split_dim = current_node->split_dim;
+
+  bool has_left = (split_index > begin_index);
+  bool has_right = (end_index > split_index);
+
+  Box<T, dim> left_box = node_box;
+  left_box.max(split_dim) = split_value;
+
+  Box<T, dim> right_box = node_box;
+  right_box.min(split_dim) = split_value;
+
+  if (has_left && has_right) {
+    tg.run([&node, current_node, begin_index, split_index, &indices, left_box, points, num_points, &build_params, &tg]() {
+      ParallelBuildHelper<T, dim>(current_node->left, begin_index, split_index, indices,
+                                  left_box, points, num_points, build_params, tg);
+    });
+    ParallelBuildHelper<T, dim>(current_node->right, split_index, end_index, indices,
+                                right_box, points, num_points, build_params, tg);
+  } else if (has_left) {
+    ParallelBuildHelper<T, dim>(current_node->left, begin_index, split_index, indices,
+                                left_box, points, num_points, build_params, tg);
+  } else if (has_right) {
+    ParallelBuildHelper<T, dim>(current_node->right, split_index, end_index, indices,
+                                right_box, points, num_points, build_params, tg);
+  }
+}
+
+#if 0
+template <typename T, int dim>
 class BuildTask : public tbb::task {
  public:
   typedef typename Accumulator<T>::Type DistT;
@@ -714,6 +761,7 @@ class BuildTask : public tbb::task {
   int num_points_;
   const pointkd::BuildParams& build_params_;
 };  // class BuildTask
+#endif
 
 template <typename Q, typename T, int dim>
 struct KNearestNeighbors_ {
@@ -788,11 +836,10 @@ void BuildTree(Node<T>*& root, Box<T, dim>& bounding_box,
                                         bounding_box, points, num_points,
                                         build_params);
   } else {
-    BuildTask<T, dim>& root_task =
-        *new (tbb::task::allocate_root())
-            BuildTask<T, dim>(root, 0, (int)num_valid_points, indices,
-                              bounding_box, points, num_points, build_params);
-    tbb::task::spawn_root_and_wait(root_task);
+    tbb::task_group tg;
+    ParallelBuildHelper<T, dim>(root, 0, (int)num_valid_points, indices,
+                                bounding_box, points, num_points, build_params, tg);
+    tg.wait();
   }
 #else
   root = RecursiveBuildHelper<T, dim>(0, (int)num_valid_points, indices,
