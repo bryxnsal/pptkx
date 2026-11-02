@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
   format.setStencilBufferSize(8);
   format.setVersion(2, 1);
   format.setProfile(QSurfaceFormat::CompatibilityProfile);
+  format.setSwapInterval(0);
   QSurfaceFormat::setDefaultFormat(format);
 
   QApplication a(argc, argv);

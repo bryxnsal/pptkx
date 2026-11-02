@@ -45,6 +45,7 @@ class Viewer : public QWindow, protected OpenGLFuncs {
     _context = new QOpenGLContext();
     QSurfaceFormat f = QSurfaceFormat::defaultFormat();
     f.setDepthBufferSize(24);
+    f.setSwapInterval(0);
     _context->setFormat(f);
     if (!_context->create()) {
       qWarning() << "Failed to create OpenGL context!";
