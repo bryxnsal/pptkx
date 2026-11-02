@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __FLOORGRID_H__
 #define __FLOORGRID_H__
 #include <math.h>
@@ -93,16 +94,23 @@ class Sector {
 
 class FloorGrid : protected OpenGLFuncs {
  public:
-  FloorGrid(QWindow* window, QOpenGLContext* context)
-      : _context(context),
-        _window(window),
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
+  FloorGrid(QWindow* window, QOpenGLContext* context, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window),
         _visible(true),
         _grid_line_color(0.7f, 0.7f, 0.7f, 1.0f),
         _grid_floor_color(0.3f, 0.3f, 0.3f, 0.5f),
         _grid_floor_z(0.0f),
         _cell_size(1.0f),
         _line_weight(0.0f) {
-    _context->makeCurrent(_window);
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
 
@@ -217,7 +225,7 @@ class FloorGrid : protected OpenGLFuncs {
         "  vec4 c = line_color * weight+floor_color*(1.0 - weight);\n"
         "  gl_FragColor = vec4(c.xyz, c.w * blur_weight);\n"
         "}\n";
-    _context->makeCurrent(_window);
+    makeCurrent();
     _persp_program.addShaderFromSourceCode(QOpenGLShader::Vertex,
                                            vsCode.c_str());
     _persp_program.addShaderFromSourceCode(QOpenGLShader::Fragment,
@@ -272,7 +280,7 @@ class FloorGrid : protected OpenGLFuncs {
 
         "  gl_FragColor = floor_color * (1.0 - weight) + line_color * (weight);\n"
         "}\n";
-    _context->makeCurrent(_window);
+    makeCurrent();
     _ortho_program.addShaderFromSourceCode(QOpenGLShader::Vertex,
                                            vsCode.c_str());
     _ortho_program.addShaderFromSourceCode(QOpenGLShader::Fragment,
@@ -281,7 +289,7 @@ class FloorGrid : protected OpenGLFuncs {
     _context->doneCurrent();
   }
   void loadSquare() {
-    _context->makeCurrent(_window);
+    makeCurrent();
     float points[12] = {
       0.0f, 0.0f, 0.0f,
       1.0f, 0.0f, 0.0f,
@@ -304,7 +312,7 @@ class FloorGrid : protected OpenGLFuncs {
     _context->doneCurrent();
   }
   void unloadSquare() {
-    _context->makeCurrent(_window);
+    makeCurrent();
     glDeleteBuffers(1, &_buffer_square);
     glDeleteBuffers(1, &_buffer_square_indices);
     _context->doneCurrent();
@@ -518,6 +526,7 @@ class FloorGrid : protected OpenGLFuncs {
   QOpenGLShaderProgram _persp_program;
   QOpenGLContext* _context;
   QWindow* _window;
+  QSurface* _surface = nullptr;
   bool _visible;
 
   GLuint _buffer_square;

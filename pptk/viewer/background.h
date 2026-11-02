@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __BACKGROUND_H__
 #define __BACKGROUND_H__
 #include <QOpenGLContext>
@@ -6,12 +7,19 @@
 #include "opengl_funcs.h"
 class Background : protected OpenGLFuncs {
  public:
-  Background(QWindow *window, QOpenGLContext *context)
-      : _context(context),
-        _window(window),
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
+  Background(QWindow *window, QOpenGLContext *context, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window),
         _bg_color_top(0.0f, 0.0f, 0.0f, 1.0f),
         _bg_color_bottom(0.23f, 0.23f, 0.44f, 1.0f) {
-    _context->makeCurrent(_window);
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
     compileProgram();
@@ -81,7 +89,7 @@ class Background : protected OpenGLFuncs {
         "  gl_FragColor = mix(colorBottom, colorTop, coordinate.y);\n"
         "}\n";
 
-    _context->makeCurrent(_window);
+    makeCurrent();
     _program.addShaderFromSourceCode(QOpenGLShader::Vertex, vsCode.c_str());
     _program.addShaderFromSourceCode(QOpenGLShader::Fragment, fsCode.c_str());
     _program.link();
@@ -90,6 +98,7 @@ class Background : protected OpenGLFuncs {
 
   QOpenGLContext *_context;
   QWindow *_window;
+  QSurface* _surface = nullptr;
   QOpenGLShaderProgram _program;
   QVector4D _bg_color_top;
   QVector4D _bg_color_bottom;

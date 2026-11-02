@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __LOOKAT_H__
 #define __LOOKAT_H__
 #include <QOpenGLContext>
@@ -8,9 +9,17 @@
 
 class LookAt : protected OpenGLFuncs {
  public:
-  LookAt(QWindow* window, QOpenGLContext* context)
-      : _context(context), _window(window), _visible(true) {
-    _context->makeCurrent(_window);
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
+  LookAt(QWindow* window, QOpenGLContext* context, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window), _visible(true) {
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
     compileProgram();
@@ -85,7 +94,7 @@ class LookAt : protected OpenGLFuncs {
         "void main() {\n"
         "  gl_FragColor = vec4(vcolor, 1);\n"
         "}\n";
-    _context->makeCurrent(_window);
+    makeCurrent();
     _program.addShaderFromSourceCode(QOpenGLShader::Vertex, vsCode.c_str());
     _program.addShaderFromSourceCode(QOpenGLShader::Fragment, fsCode.c_str());
     _program.link();
@@ -94,6 +103,7 @@ class LookAt : protected OpenGLFuncs {
 
   QOpenGLContext* _context;
   QWindow* _window;
+  QSurface* _surface = nullptr;
   QOpenGLShaderProgram _program;
   bool _visible;
 };

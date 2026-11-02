@@ -30,6 +30,7 @@
 #include "selection_box.h"
 #include "text.h"
 #include "timer.h"
+#include <QOffscreenSurface>
 
 //#define TEST_FINE_RENDER
 
@@ -42,26 +43,34 @@ class Viewer : public QWindow, protected OpenGLFuncs {
 
     // create OpenGL context
     _context = new QOpenGLContext();
-    QSurfaceFormat f = format();
-    f.setDepthBufferSize(16);
+    QSurfaceFormat f = QSurfaceFormat::defaultFormat();
+    f.setDepthBufferSize(24);
     _context->setFormat(f);
-    _context->create();
+    if (!_context->create()) {
+      qWarning() << "Failed to create OpenGL context!";
+    }
 
-    // associate OpenGL functions with _context
-    _context->makeCurrent(this);
-    initializeOpenGLFunctions();
-    _context->doneCurrent();
+    // associate OpenGL functions with _context using offscreen surface before window is mapped on Wayland
+    _offscreen = new QOffscreenSurface();
+    _offscreen->setFormat(f);
+    _offscreen->create();
+    if (_context->makeCurrent(_offscreen)) {
+      initializeOpenGLFunctions();
+      _context->doneCurrent();
+    } else {
+      qWarning() << "Failed to make OpenGL context current on offscreen surface!";
+    }
 
     // set font
     QFont font("Courier", 12);
 
-    // initialize various viewer objects
-    _background = new Background(this, _context);
-    _floor_grid = new FloorGrid(this, _context);
-    _look_at = new LookAt(this, _context);
-    _points = new PointCloud(this, _context);
-    _selection_box = new SelectionBox(this, _context);
-    _text = new Text(this, _context, font);
+    // initialize various viewer objects passing _offscreen surface
+    _background = new Background(this, _context, _offscreen);
+    _floor_grid = new FloorGrid(this, _context, _offscreen);
+    _look_at = new LookAt(this, _context, _offscreen);
+    _points = new PointCloud(this, _context, _offscreen);
+    _selection_box = new SelectionBox(this, _context, _offscreen);
+    _text = new Text(this, _context, font, _offscreen);
     _dolly = new CameraDolly();
 
     // initalize various states
@@ -885,6 +894,7 @@ class Viewer : public QWindow, protected OpenGLFuncs {
   QTcpServer* _server;
   QPointF _pressPos;
   QOpenGLContext* _context;
+  QOffscreenSurface* _offscreen;
 
   QtCamera _camera;
   FloorGrid* _floor_grid;

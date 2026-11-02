@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __SELECTIONBOX_H__
 #define __SELECTIONBOX_H__
 #include <QOpenGLContext>
@@ -9,11 +10,19 @@
 
 class SelectionBox : protected OpenGLFuncs {
  public:
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
   enum SelectMode { ADD = 0, SUB = 1, NONE = 2 };
 
-  SelectionBox(QWindow* window, QOpenGLContext* context)
-      : _context(context), _window(window), _select_mode(NONE) {
-    _context->makeCurrent(_window);
+  SelectionBox(QWindow* window, QOpenGLContext* context, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window), _select_mode(NONE) {
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
     compileProgram();
@@ -95,7 +104,7 @@ class SelectionBox : protected OpenGLFuncs {
         "void main() {\n"
         "  gl_FragColor = vec4(1, 1, 0, 1);\n"
         "}\n";
-    _context->makeCurrent(_window);
+    makeCurrent();
     _program.addShaderFromSourceCode(QOpenGLShader::Vertex, vsCode.c_str());
     _program.addShaderFromSourceCode(QOpenGLShader::Fragment, fsCode.c_str());
     _program.link();
@@ -104,6 +113,7 @@ class SelectionBox : protected OpenGLFuncs {
 
   QOpenGLContext* _context;
   QWindow* _window;
+  QSurface* _surface = nullptr;
   QOpenGLShaderProgram _program;
 
   SelectMode _select_mode;

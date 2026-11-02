@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __MI_OPENGL_TEXT_H__
 #define __MI_OPENGL_TEXT_H__
 
@@ -34,16 +35,23 @@ class Text : public OpenGLFuncs {
   };
 
  public:
-  Text(QWindow* window, QOpenGLContext* context, const QFont& f)
-      : _context(context),
-        _window(window),
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
+  Text(QWindow* window, QOpenGLContext* context, const QFont& f, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window),
         font(f),
         fontMetrics(f),
         pixelFont(f),
         pixelFontMetrics(f),
         xOffset(1),
         yOffset(1) {
-    _context->makeCurrent(_window);
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
 
@@ -59,7 +67,7 @@ class Text : public OpenGLFuncs {
 
   void clearCache() {
     if (_context == NULL) return;
-    _context->makeCurrent(_window);
+    makeCurrent();
     foreach (GLuint texture, textures)
       glDeleteTextures(1, &texture);
     _context->doneCurrent();
@@ -205,6 +213,7 @@ class Text : public OpenGLFuncs {
 
   QOpenGLContext* _context;
   QWindow* _window;
+  QSurface* _surface = nullptr;
 
   QFont font;
   QFontMetrics fontMetrics;

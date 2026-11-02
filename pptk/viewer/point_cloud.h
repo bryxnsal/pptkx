@@ -1,3 +1,4 @@
+#include <QOffscreenSurface>
 #ifndef __POINTCLOUD_H__
 #define __POINTCLOUD_H__
 #include <QOpenGLContext>
@@ -14,9 +15,16 @@
 
 class PointCloud : protected OpenGLFuncs {
  public:
-  PointCloud(QWindow* window, QOpenGLContext* context)
-      : _context(context),
-        _window(window),
+  bool makeCurrent() {
+    if (_window && _window->isExposed()) {
+      if (_context->makeCurrent(_window)) return true;
+    }
+    if (_surface && _context->makeCurrent(_surface)) return true;
+    if (_window && _context->makeCurrent(_window)) return true;
+    return false;
+  }
+  PointCloud(QWindow* window, QOpenGLContext* context, QSurface* surface = nullptr)
+      : _context(context), _surface(surface), _window(window),
         _point_size(0.0f),
         _num_points(0),
         _buffer_positions(0),
@@ -28,7 +36,7 @@ class PointCloud : protected OpenGLFuncs {
         _color_map_min(0.0f),
         _color_map_max(1.0f),
         _color_map_auto(true) {
-    _context->makeCurrent(_window);
+    makeCurrent();
     initializeOpenGLFunctions();
     _context->doneCurrent();
     compileProgram();
@@ -47,7 +55,7 @@ class PointCloud : protected OpenGLFuncs {
     _full_box = vltools::Box3<float>();
     _full_box.addPoints(&_positions[0], _num_points);
 
-    _context->makeCurrent(_window);
+    makeCurrent();
 
     // create a buffer for storing position vectors
     glGenBuffers(1, &_buffer_positions);
@@ -93,7 +101,7 @@ class PointCloud : protected OpenGLFuncs {
     _octree_ids.clear();
     _selected_ids.clear();
     _full_box = vltools::Box3<float>();
-    _context->makeCurrent(_window);
+    makeCurrent();
     glDeleteBuffers(1, &_buffer_positions);
     glDeleteBuffers(1, &_buffer_colors);
     glDeleteBuffers(1, &_buffer_scalars);
@@ -242,7 +250,7 @@ class PointCloud : protected OpenGLFuncs {
     //    2. rgba             N              N
     //    3. array of scalar  Y              Y
     //    4. array of rgba    N              Y
-    _context->makeCurrent(_window);
+    makeCurrent();
     int curr_attr_idx = (int)_attributes.currentIndex();
     bool use_color_map = _attributes.dim(curr_attr_idx) == 1;
     bool broadcast_attr = _attributes.size(curr_attr_idx) == 1;
@@ -510,7 +518,7 @@ class PointCloud : protected OpenGLFuncs {
         "  float weight = clamp((outer_radius - length(frag_center - gl_FragCoord.xy)) / (outer_radius - inner_radius), 0, 1);\n"
         "  gl_FragColor = frag_color * vec4(1, 1, 1, weight);\n"
         "}\n";
-    _context->makeCurrent(_window);
+    makeCurrent();
     _program.addShaderFromSourceCode(QOpenGLShader::Vertex, vsCode.c_str());
     _program.addShaderFromSourceCode(QOpenGLShader::Fragment, fsCode.c_str());
     _program.link();
@@ -564,7 +572,7 @@ class PointCloud : protected OpenGLFuncs {
     std::vector<float> selection_mask(_positions.size() / 3, 0.0f);
     for (std::size_t i = 0; i < _selected_ids.size(); i++)
       selection_mask[_selected_ids[i]] = 1.0f;
-    _context->makeCurrent(_window);
+    makeCurrent();
     glBindBuffer(GL_ARRAY_BUFFER, _buffer_selection_mask);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * _positions.size() / 3,
                     (GLvoid*)&selection_mask[0]);
@@ -597,6 +605,7 @@ class PointCloud : protected OpenGLFuncs {
 
   QOpenGLContext* _context;
   QWindow* _window;
+  QSurface* _surface = nullptr;
   QOpenGLShaderProgram _program;
 
   float _point_size;
