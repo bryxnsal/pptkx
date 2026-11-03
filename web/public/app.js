@@ -62,6 +62,8 @@ class PPTKWebApp {
           this.btnLoadPly.addEventListener('click', () => {
             this.loadPlyStream('/api/ply');
           });
+          // Auto-load PLY if provided on server
+          this.loadPlyStream('/api/ply');
         }
       }
     } catch (_) {}
@@ -114,9 +116,7 @@ class PPTKWebApp {
           const b = e.data.bounds;
           this.camera.fitBox(b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ);
           this.renderer.setZRange(b.minZ, b.maxZ);
-        }
-        if (e.data.classes) {
-          this.renderer.setClassRange(e.data.classes.minClass, e.data.classes.maxClass);
+          this.renderer.setFloorLevel(b.minZ);
         }
 
         this.streamWorker.terminate();

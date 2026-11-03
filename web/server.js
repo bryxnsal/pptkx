@@ -60,7 +60,8 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({
       hasPly,
       plySize,
-      plyFilename
+      plyFilename,
+      port
     }));
     return;
   }
