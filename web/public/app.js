@@ -23,8 +23,8 @@ class PPTKWebApp {
     // Native PPTK HUD Elements
     this.hudContainer = document.getElementById('pptk-hud');
     this.hudTopLeft = document.getElementById('hud-top-left');
+    this.hudTopRight = document.getElementById('hud-top-right');
     this.hudBottomLeft = document.getElementById('hud-bottom-left');
-    this.hudBottomRight = document.getElementById('hud-bottom-right');
     this.uiContainer = document.getElementById('ui-container');
     this.showHUD = true;
 
@@ -333,37 +333,38 @@ class PPTKWebApp {
   _updateHUD() {
     if (!this.showHUD) return;
 
-    // 1. Top-Left HUD
-    const p = this.camera.lookAt;
-    let tl = `Look-at position: x = ${p[0].toFixed(3)}, y = ${p[1].toFixed(3)}, z = ${p[2].toFixed(3)}\n`;
-    tl += `${this.renderer.currentPoints} points loaded\n`;
-
-    if (this.selectedCount === 1 && this.singleSelectedPoint) {
-      tl += `Selected point:\n`;
-      tl += `   x = ${this.singleSelectedPoint.x.toFixed(3)}\n`;
-      tl += `   y = ${this.singleSelectedPoint.y.toFixed(3)}\n`;
-      tl += `   z = ${this.singleSelectedPoint.z.toFixed(3)}\n`;
-      if (this.singleSelectedPoint.v !== undefined) {
-        tl += `   v = ${this.singleSelectedPoint.v.toFixed(3)}\n`;
-      }
-    } else if (this.selectedCount > 1) {
-      tl += `${this.selectedCount} points selected\n`;
-    }
-    this.hudTopLeft.innerText = tl;
-
-    // 2. Bottom-Left HUD
+    // 1. Top-Left HUD (log of grid size arriba, y debajo Attribute N of M)
     const logGridSize = Math.round(Math.log(this.renderer.floorGrid.cellSize) / Math.log(10.0));
     const lineWeight = this.renderer.floorGrid.lineWeight;
     const alphaMinor = Math.pow(Math.max(0.0, lineWeight), 0.25).toFixed(2);
-    
-    let bl = `Attribute ${this.currAttributeIndex} of ${this.numAttributes}\n`;
-    bl += `log of grid size: <span style="opacity: ${alphaMinor}">${logGridSize}</span> | <span>${logGridSize + 1}</span>`;
-    this.hudBottomLeft.innerHTML = bl;
 
-    // 3. Bottom-Right HUD
-    let br = `${this.currentFps.toFixed(1)} fps\n`;
-    br += `port ${this.serverPort}`;
-    this.hudBottomRight.innerText = br;
+    let tl = `log of grid size: <span style="opacity: ${alphaMinor}">${logGridSize}</span> | <span>${logGridSize + 1}</span>\n`;
+    tl += `Attribute ${this.currAttributeIndex} of ${this.numAttributes}`;
+    this.hudTopLeft.innerHTML = tl;
+
+    // 2. Top-Right HUD (port arriba, y debajo los fps)
+    let tr = `port ${this.serverPort}\n`;
+    tr += `${this.currentFps.toFixed(1)} fps`;
+    this.hudTopRight.innerText = tr;
+
+    // 3. Bottom-Left HUD (Look-at position abajo, encima N points loaded, y encima selección)
+    let bl = '';
+    if (this.selectedCount === 1 && this.singleSelectedPoint) {
+      bl += `Selected point:\n`;
+      bl += `   x = ${this.singleSelectedPoint.x.toFixed(3)}\n`;
+      bl += `   y = ${this.singleSelectedPoint.y.toFixed(3)}\n`;
+      bl += `   z = ${this.singleSelectedPoint.z.toFixed(3)}\n`;
+      if (this.singleSelectedPoint.v !== undefined) {
+        bl += `   v = ${this.singleSelectedPoint.v.toFixed(3)}\n`;
+      }
+    } else if (this.selectedCount > 1) {
+      bl += `${this.selectedCount} points selected\n`;
+    }
+
+    bl += `${this.renderer.currentPoints} points loaded\n`;
+    const p = this.camera.lookAt;
+    bl += `Look-at position: x = ${p[0].toFixed(3)}, y = ${p[1].toFixed(3)}, z = ${p[2].toFixed(3)}`;
+    this.hudBottomLeft.innerText = bl;
   }
 
   _startRenderLoop() {
