@@ -1,4 +1,7 @@
 add_library(kdtree SHARED kdtree_wrapper.cpp)
+if (MSVC)
+  target_compile_options(kdtree PRIVATE /bigobj)
+endif()
 set_target_python_module_name(kdtree)
 target_compile_definitions(kdtree PRIVATE -DUSE_TBB)
 target_include_directories(kdtree PRIVATE
