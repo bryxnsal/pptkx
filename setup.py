@@ -62,6 +62,10 @@ class CMakeBuild(build_ext):
             f'-DCMAKE_BUILD_TYPE=Release',
             f'-DPython3_EXECUTABLE={sys.executable}',
         ]
+        if 'CMAKE_TOOLCHAIN_FILE' in os.environ:
+            cmake_args.append(f"-DCMAKE_TOOLCHAIN_FILE={os.environ['CMAKE_TOOLCHAIN_FILE']}")
+        if 'Qt5_DIR' in os.environ:
+            cmake_args.append(f"-DQt5_DIR={os.environ['Qt5_DIR']}")
 
         subprocess.check_call([cmake_bin, ext.sourcedir] + cmake_args, cwd=build_temp)
         subprocess.check_call([cmake_bin, '--build', '.', '--config', 'Release'], cwd=build_temp)

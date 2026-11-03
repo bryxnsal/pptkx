@@ -110,5 +110,26 @@ jobs:
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
+          name: "pptkx v0.1.2"
+          body: |
+            ## pptkx v0.1.2
+
+            High-performance 3D point cloud processing and viewer with native Wayland and Windows support.
+
+            ### Highlights
+            - 100% native Wayland support using QOffscreenSurface and system Qt5
+            - Zero Wayland mouse V-Sync lag (swapInterval=0)
+            - OpenGL CompatibilityProfile and HiDPI devicePixelRatio scaling
+            - oneTBB task_group multithreading for fast KD-Tree operations
+            - NumPy 2.x and NumPy 1.x backwards compatibility
+            - Python 3.8 to 3.12+ support across Linux and Windows
+            - Automated PEP 517 packaging compatible with uv and pip
+
+            ### Installation
+            Download the appropriate `.whl` file below for your operating system and Python version, then run:
+            ```bash
+            pip install <wheel_file>.whl
+            # or with uv:
+            uv pip install <wheel_file>.whl
+            ```
           files: dist-merged/*.whl
-          generate_release_notes: true

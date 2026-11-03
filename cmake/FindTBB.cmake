@@ -1,14 +1,30 @@
-find_path(TBB_INCLUDE_DIR NAMES tbb/tbb.h PATHS /usr/include /usr/local/include)
-find_library(TBB_tbb_LIBRARY NAMES tbb PATHS /usr/lib /usr/local/lib)
-find_library(TBB_tbbmalloc_LIBRARY NAMES tbbmalloc PATHS /usr/lib /usr/local/lib)
-
-set(TBB_tbb_RUNTIME "${TBB_tbb_LIBRARY}" CACHE FILEPATH "Path to tbb runtime")
-set(TBB_tbbmalloc_RUNTIME "${TBB_tbbmalloc_LIBRARY}" CACHE FILEPATH "Path to tbbmalloc runtime")
+# First try standard CONFIG mode (e.g. from vcpkg, modern Linux or conda)
+find_package(TBB CONFIG QUIET)
+if (TBB_FOUND)
+  if (TARGET TBB::tbb)
+    set(TBB_tbb_LIBRARY TBB::tbb)
+  endif()
+  if (TARGET TBB::tbbmalloc)
+    set(TBB_tbbmalloc_LIBRARY TBB::tbbmalloc)
+  else()
+    set(TBB_tbbmalloc_LIBRARY ${TBB_tbb_LIBRARY})
+  endif()
+  # Include dir is propagated by the target
+  get_target_property(TBB_INCLUDE_DIR TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  if (NOT TBB_INCLUDE_DIR)
+    set(TBB_INCLUDE_DIR "")
+  endif()
+else()
+  find_path(TBB_INCLUDE_DIR NAMES tbb/tbb.h PATHS /usr/include /usr/local/include)
+  find_library(TBB_tbb_LIBRARY NAMES tbb PATHS /usr/lib /usr/local/lib)
+  find_library(TBB_tbbmalloc_LIBRARY NAMES tbbmalloc PATHS /usr/lib /usr/local/lib)
+  if (NOT TBB_tbbmalloc_LIBRARY)
+    set(TBB_tbbmalloc_LIBRARY ${TBB_tbb_LIBRARY})
+  endif()
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(TBB
   REQUIRED_VARS
-    TBB_INCLUDE_DIR
     TBB_tbb_LIBRARY
-    TBB_tbbmalloc_LIBRARY
 )
