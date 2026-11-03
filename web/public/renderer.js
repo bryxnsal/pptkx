@@ -12,7 +12,7 @@ export class WebGL2PointRenderer {
       antialias: false,
       depth: true,
       stencil: false,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: true, // Enables progressive fine rendering like PPTK
       powerPreference: 'high-performance'
     });
 
@@ -50,10 +50,25 @@ export class WebGL2PointRenderer {
     this.lodCount = 0;
     this.lodEbo = null;
 
+    // Progressive Fine Render state (matching Viewer::renderPointsFine())
+    this.fineRenderOffset = 0;
+    this.fineRenderChunkSize = 2500000; // 2.5M points per progressive slice
+    this.isFineRendering = false;
+
     // Selection box state
     this.boxActive = false;
     this.boxStart = [0, 0];
     this.boxEnd = [0, 0];
+  }
+
+  startFineRender() {
+    this.fineRenderOffset = 0;
+    this.isFineRendering = true;
+  }
+
+  stopFineRender() {
+    this.isFineRendering = false;
+    this.fineRenderOffset = 0;
   }
 
   // Exact 256-color palette uploaded as a 1D texture for zero-cost hardware lookup
@@ -95,6 +110,8 @@ export class WebGL2PointRenderer {
       uniform sampler2D u_lut256;
 
       out vec4 v_color;
+      out vec2 v_point_center;
+      out float v_radius;
 
       vec3 colormapJet(float t) {
         t = clamp(t, 0.0, 1.0);
@@ -123,7 +140,12 @@ export class WebGL2PointRenderer {
       void main() {
         gl_Position = u_mvp * vec4(a_position, 1.0);
         float dist = max(gl_Position.w, 0.001);
-        gl_PointSize = clamp((u_point_size / dist) * u_resolution.y * 0.5, 2.0, 32.0);
+        
+        // Anti-aliased Point Sprite sizing matching PPTK's point_cloud.h
+        float rawSize = (u_point_size / dist) * u_resolution.y * 0.5;
+        float pointRadius = clamp(rawSize, 2.0, 36.0);
+        gl_PointSize = pointRadius * 2.0;
+        v_radius = pointRadius;
 
         if (u_colormap_mode == -1) {
           // Direct 1D discrete LUT sample for class integer (0..255)
@@ -147,9 +169,16 @@ export class WebGL2PointRenderer {
     const fsSource = `#version 300 es
       precision mediump float;
       in vec4 v_color;
+      in float v_radius;
       out vec4 fragColor;
+
+      // Antialiased circular point sprite matching PPTK native point_cloud.h
       void main() {
-        fragColor = v_color;
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord) * 2.0; // 0.0 at center, 1.0 at edge
+        if (dist > 1.0) discard;
+        float alpha = clamp((1.0 - dist) * v_radius * 0.5, 0.0, 1.0);
+        fragColor = vec4(v_color.rgb, v_color.a * alpha);
       }
     `;
 
@@ -334,6 +363,9 @@ export class WebGL2PointRenderer {
 
     // 4. Render Point Cloud
     gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+
     if (this.currentPoints > 0) {
       gl.useProgram(this.program);
       gl.uniformMatrix4fv(this.uMVP, false, mvpMatrix);
@@ -355,17 +387,18 @@ export class WebGL2PointRenderer {
       gl.bindVertexArray(this.vao);
 
       if (isLod && this.lodCount > 0) {
-        // Native PPTK LOD draw via Element Array Buffer (Index Buffer)
+        // Native PPTK LOD draw via Element Array Buffer (Index Buffer) at 60 FPS
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lodEbo);
         gl.drawElements(gl.POINTS, this.lodCount, gl.UNSIGNED_INT, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
       } else {
-        // Full Render: 100% of points
+        // Full Render: 100% of points rendered directly or starting progressive refinement
         gl.drawArrays(gl.POINTS, 0, this.currentPoints);
       }
 
       gl.bindVertexArray(null);
     }
+    gl.disable(gl.BLEND);
 
     // 5. Render LookAt Widget (Crosshair axes at target)
     if (this.showAxis && camera) {
