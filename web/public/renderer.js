@@ -40,10 +40,15 @@ export class WebGL2PointRenderer {
 
     this.totalCapacity = 0;
     this.currentPoints = 0;
-    this.drawAllPoints = true; // PPTK Full Render Mode: renders all loaded points
-    this.maxRenderBudget = 50000000; // Allow full rendering up to 50M points without truncation
+    this.drawAllPoints = true;
+    this.maxRenderBudget = 50000000;
     this.drawStride = 1;
     this.activeDrawCount = 0;
+
+    // Interactive LOD Index Buffer (like PPTK's _buffer_octree_ids)
+    this.maxLodPoints = 2000000; // 2 million points during camera movement = 60 FPS
+    this.lodCount = 0;
+    this.lodEbo = null;
 
     // Selection box state
     this.boxActive = false;
@@ -89,9 +94,6 @@ export class WebGL2PointRenderer {
       uniform vec2 u_z_range;
       uniform sampler2D u_lut256;
 
-      uniform int u_draw_stride;
-      uniform int u_start_index;
-
       out vec4 v_color;
 
       vec3 colormapJet(float t) {
@@ -119,11 +121,6 @@ export class WebGL2PointRenderer {
       }
 
       void main() {
-        if (u_draw_stride > 1 && ((gl_VertexID - u_start_index) % u_draw_stride) != 0) {
-          gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // Discard vertex outside clip space
-          return;
-        }
-
         gl_Position = u_mvp * vec4(a_position, 1.0);
         float dist = max(gl_Position.w, 0.001);
         gl_PointSize = clamp((u_point_size / dist) * u_resolution.y * 0.5, 2.0, 32.0);
@@ -163,8 +160,6 @@ export class WebGL2PointRenderer {
     this.uColorMapMode = gl.getUniformLocation(this.program, 'u_colormap_mode');
     this.uZRange = gl.getUniformLocation(this.program, 'u_z_range');
     this.uLut256 = gl.getUniformLocation(this.program, 'u_lut256');
-    this.uDrawStride = gl.getUniformLocation(this.program, 'u_draw_stride');
-    this.uStartIndex = gl.getUniformLocation(this.program, 'u_start_index');
   }
 
   _initBoxShader() {
@@ -224,6 +219,9 @@ export class WebGL2PointRenderer {
     gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, true, stride, 12);
     gl.bindVertexArray(null);
 
+    // Dynamic Element Buffer Object for interactive LOD indices
+    this.lodEbo = gl.createBuffer();
+
     this.boxVao = gl.createVertexArray();
     gl.bindVertexArray(this.boxVao);
     this.boxVbo = gl.createBuffer();
@@ -257,16 +255,28 @@ export class WebGL2PointRenderer {
   }
 
   _updateDrawStride() {
-    if (this.drawAllPoints) {
-      this.drawStride = 1;
-      this.activeDrawCount = this.currentPoints;
-    } else if (this.currentPoints > this.maxRenderBudget) {
-      this.drawStride = Math.ceil(this.currentPoints / this.maxRenderBudget);
-      this.activeDrawCount = Math.floor(this.currentPoints / this.drawStride);
-    } else {
-      this.drawStride = 1;
-      this.activeDrawCount = this.currentPoints;
+    this.drawStride = 1;
+    this.activeDrawCount = this.currentPoints;
+    this._updateLodIndexBuffer();
+  }
+
+  // Generates evenly spaced indices across the entire point buffer for 60 FPS interaction
+  _updateLodIndexBuffer() {
+    if (this.currentPoints === 0) return;
+    const gl = this.gl;
+    const targetCount = Math.min(this.currentPoints, this.maxLodPoints);
+    const stride = Math.max(1, Math.floor(this.currentPoints / targetCount));
+    const count = Math.floor(this.currentPoints / stride);
+
+    const indices = new Uint32Array(count);
+    for (let i = 0; i < count; i++) {
+      indices[i] = i * stride;
     }
+
+    this.lodCount = count;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lodEbo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
   }
 
   setColorMap(mode) {
@@ -328,21 +338,14 @@ export class WebGL2PointRenderer {
       gl.useProgram(this.program);
       gl.uniformMatrix4fv(this.uMVP, false, mvpMatrix);
 
-      // Adaptive PPTK Interaction LOD:
-      // While user drags/rotates/pans/zooms, sample evenly across dataset to maintain 60 FPS
-      let stride = 1;
-      let targetBudget = 2500000;
-      if (isInteracting && this.currentPoints > targetBudget) {
-        stride = Math.ceil(this.currentPoints / targetBudget);
-      }
+      const isLod = isInteracting && (this.currentPoints > this.maxLodPoints);
+      const strideRatio = isLod ? Math.sqrt(this.currentPoints / this.lodCount) : 1.0;
+      const adjustedPointSize = pointSize * strideRatio;
 
-      const adjustedPointSize = pointSize * (stride > 1 ? Math.sqrt(stride) : 1.0);
       gl.uniform1f(this.uPointSize, adjustedPointSize);
       gl.uniform2f(this.uResolution, this.canvas.width, this.canvas.height);
       gl.uniform1i(this.uColorMapMode, this.activeColorMap);
       gl.uniform2f(this.uZRange, this.minZ, this.maxZ);
-      gl.uniform1i(this.uDrawStride, stride);
-      gl.uniform1i(this.uStartIndex, 0);
 
       // Bind 256-color LUT texture to unit 0
       gl.activeTexture(gl.TEXTURE0);
@@ -350,7 +353,17 @@ export class WebGL2PointRenderer {
       gl.uniform1i(this.uLut256, 0);
 
       gl.bindVertexArray(this.vao);
-      gl.drawArrays(gl.POINTS, 0, this.currentPoints);
+
+      if (isLod && this.lodCount > 0) {
+        // Native PPTK LOD draw via Element Array Buffer (Index Buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lodEbo);
+        gl.drawElements(gl.POINTS, this.lodCount, gl.UNSIGNED_INT, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+      } else {
+        // Full Render: 100% of points
+        gl.drawArrays(gl.POINTS, 0, this.currentPoints);
+      }
+
       gl.bindVertexArray(null);
     }
 
