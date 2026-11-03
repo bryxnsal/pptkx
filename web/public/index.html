@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPTK Native Web Viewer - Stress Test</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0c0d10;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #canvas3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    #ui-container {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(18, 20, 26, 0.90);
+      backdrop-filter: blur(10px);
+      padding: 16px 20px;
+      border-radius: 8px;
+      color: #eee;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.12);
+      z-index: 10;
+      font-size: 13px;
+      width: 290px;
+    }
+    h1 {
+      font-size: 15px;
+      margin-bottom: 10px;
+      color: #00d2ff;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+      gap: 12px;
+    }
+    .stat-val {
+      font-weight: bold;
+      color: #fff;
+      font-family: monospace;
+    }
+    .section-title {
+      font-size: 11px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      padding: 7px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      background: #0284c7;
+      color: #fff;
+      border-color: #0284c7;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: #202636;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #38bdf8;
+      transition: width 0.1s linear;
+    }
+    .tip {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui-container">
+    <h1>PPTK NATIVE WEB VIEWER</h1>
+    <div class="stat-row"><span>Estado:</span><span id="lbl-status" class="stat-val">Listo</span></div>
+    <div class="stat-row"><span>Backend:</span><span id="lbl-backend" class="stat-val">WebGL2 Direct</span></div>
+    <div class="stat-row"><span>Puntos en GPU:</span><span id="lbl-points" class="stat-val">0</span></div>
+    <div class="stat-row"><span>Memoria VBO:</span><span id="lbl-mem" class="stat-val">0 MB</span></div>
+    <div class="stat-row"><span>FPS:</span><span id="lbl-fps" class="stat-val">60</span></div>
+
+    <div class="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+
+    <div id="ply-section" style="display: none; margin-top: 10px;">
+      <button id="btn-load-ply" class="btn" style="width: 100%; background: #10b981; border-color: #059669; color: #fff;">
+        Cargar PLY (<span id="ply-name">archivo.ply</span>)
+      </button>
+    </div>
+
+    <div class="section-title">Paleta de Color (Colormap)</div>
+    <select id="select-colormap" style="width: 100%; background: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 6px; border-radius: 4px; font-size: 12px; margin-bottom: 6px; cursor: pointer;">
+      <option value="-1" selected>Clase (Escalera 0-255)</option>
+      <option value="0">Jet (Elevación Z - PPTK)</option>
+      <option value="1">Viridis (Elevación Z)</option>
+      <option value="2">Plasma (Elevación Z)</option>
+      <option value="3">Escala de Grises (Elevación Z)</option>
+    </select>
+
+    <div class="stat-row" id="row-selection" style="display: none; background: rgba(234, 179, 8, 0.15); padding: 4px 6px; border-radius: 4px; border: 1px solid rgba(234, 179, 8, 0.3);">
+      <span style="color: #fde047;">Puntos Seleccionados:</span>
+      <span id="lbl-selection-count" class="stat-val" style="color: #fde047;">0</span>
+    </div>
+
+    <div class="section-title">Pruebas de Estrés Masivo</div>
+    <div class="btn-grid">
+      <button class="btn" data-points="1000000">1M Puntos</button>
+      <button class="btn" data-points="5000000">5M Puntos</button>
+      <button class="btn" data-points="10000000">10M Puntos</button>
+      <button class="btn" data-points="20000000">20M Puntos</button>
+      <button class="btn" data-points="30000000">30M Puntos</button>
+      <button class="btn" data-points="40000000">40M Puntos</button>
+    </div>
+    <button class="btn" data-points="50000000" style="width: 100%; margin-top: 6px; border-color: #f43f5e; color: #f43f5e;">50M Puntos (Límite Máximo)</button>
+
+    <div class="tip">
+      <div>Rotar: Clic Izquierdo | Pan: Shift + Clic</div>
+      <div>Zoom: Rueda del Ratón | Box: Ctrl + Clic</div>
+      <div>Vistas: 1 (Frente), 3 (Lado), 7 (Arriba)</div>
+      <div>Proyección: 5 (Persp/Ortho)</div>
+      <div>Escena: G (Rejilla), A (Ejes), B (Fondo)</div>
+    </div>
+  </div>
+
+  <canvas id="canvas3d"></canvas>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
