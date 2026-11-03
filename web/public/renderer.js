@@ -177,7 +177,8 @@ export class WebGL2PointRenderer {
         vec2 coord = gl_PointCoord - vec2(0.5);
         float dist = length(coord) * 2.0; // 0.0 at center, 1.0 at edge
         if (dist > 1.0) discard;
-        float alpha = clamp((1.0 - dist) * v_radius * 0.5, 0.0, 1.0);
+        // Native PPTK smooth edge feathering:
+        float alpha = clamp(1.0 - smoothstep(0.7, 1.0, dist), 0.0, 1.0);
         fragColor = vec4(v_color.rgb, v_color.a * alpha);
       }
     `;
@@ -392,7 +393,7 @@ export class WebGL2PointRenderer {
         gl.drawElements(gl.POINTS, this.lodCount, gl.UNSIGNED_INT, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
       } else {
-        // Full Render: 100% of points rendered directly or starting progressive refinement
+        // Full Render: 100% of points rendered directly
         gl.drawArrays(gl.POINTS, 0, this.currentPoints);
       }
 
