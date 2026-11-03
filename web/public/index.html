@@ -161,7 +161,15 @@
       <div>Vistas: 1 (Frente), 3 (Lado), 7 (Arriba)</div>
       <div>Proyección: 5 (Persp/Ortho)</div>
       <div>Escena: G (Rejilla), A (Ejes), B (Fondo)</div>
+      <div>Texto HUD: I (Mostrar/Ocultar), H (Panel)</div>
     </div>
+  </div>
+
+  <!-- Native PPTK Identical Text HUD Overlay -->
+  <div id="pptk-hud" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.25; color: #ffffff; text-shadow: 1px 1px 1px rgba(0,0,0,0.85);">
+    <div id="hud-top-left" style="position: absolute; top: 4px; left: 4px; white-space: pre;"></div>
+    <div id="hud-bottom-left" style="position: absolute; bottom: 4px; left: 4px; white-space: pre;"></div>
+    <div id="hud-bottom-right" style="position: absolute; bottom: 4px; right: 4px; text-align: right; white-space: pre;"></div>
   </div>
 
   <canvas id="canvas3d"></canvas>

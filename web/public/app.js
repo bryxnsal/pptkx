@@ -20,6 +20,21 @@ class PPTKWebApp {
     this.rowSelection = document.getElementById('row-selection');
     this.lblSelectionCount = document.getElementById('lbl-selection-count');
 
+    // Native PPTK HUD Elements
+    this.hudContainer = document.getElementById('pptk-hud');
+    this.hudTopLeft = document.getElementById('hud-top-left');
+    this.hudBottomLeft = document.getElementById('hud-bottom-left');
+    this.hudBottomRight = document.getElementById('hud-bottom-right');
+    this.uiContainer = document.getElementById('ui-container');
+    this.showHUD = true;
+
+    this.serverPort = 8080;
+    this.selectedCount = 0;
+    this.singleSelectedPoint = null;
+    this.currAttributeIndex = 1;
+    this.numAttributes = 1;
+    this.currentFps = 60.0;
+
     this.streamWorker = null;
     this.isDragging = false;
     this.isSelecting = false;
@@ -39,6 +54,7 @@ class PPTKWebApp {
       const res = await fetch('/api/config');
       if (res.ok) {
         const data = await res.json();
+        if (data.port) this.serverPort = data.port;
         if (data.hasPly) {
           this.plySection.style.display = 'block';
           const mb = (data.plySize / (1024 * 1024)).toFixed(0);
@@ -163,6 +179,7 @@ class PPTKWebApp {
         const dy = Math.abs(currentNdc[1] - this.selectionStartNdc[1]);
         const areaRatio = Math.min(1.0, (dx * dy) / 4.0);
         const approxSelected = Math.round(this.renderer.currentPoints * areaRatio);
+        this.selectedCount = approxSelected;
 
         if (approxSelected > 0) {
           this.rowSelection.style.display = 'flex';
@@ -171,6 +188,13 @@ class PPTKWebApp {
           this.rowSelection.style.display = 'none';
         }
         return;
+      }
+
+      if (e.button === 2 && !this.isSelecting) {
+        // Right click clears selection like native PPTK
+        this.selectedCount = 0;
+        this.singleSelectedPoint = null;
+        this.rowSelection.style.display = 'none';
       }
 
       if (this.isDragging) {
@@ -225,6 +249,19 @@ class PPTKWebApp {
         this.renderer.showAxis = !this.renderer.showAxis;
       } else if (e.key === 'b' || e.key === 'B') {
         this.renderer.showBackground = !this.renderer.showBackground;
+      } else if (e.key === 'i' || e.key === 'I') {
+        this.showHUD = !this.showHUD;
+        this.hudContainer.style.display = this.showHUD ? 'block' : 'none';
+      } else if (e.key === 'h' || e.key === 'H') {
+        const isHidden = this.uiContainer.style.display === 'none';
+        this.uiContainer.style.display = isHidden ? 'block' : 'none';
+      } else if (e.key === '[' || e.key === ']') {
+        // Attribute cycling like native PPTK
+        if (e.key === '[') {
+          this.currAttributeIndex = this.currAttributeIndex <= 1 ? this.numAttributes : this.currAttributeIndex - 1;
+        } else {
+          this.currAttributeIndex = (this.currAttributeIndex % this.numAttributes) + 1;
+        }
       }
     });
   }
@@ -293,13 +330,50 @@ class PPTKWebApp {
     };
   }
 
+  _updateHUD() {
+    if (!this.showHUD) return;
+
+    // 1. Top-Left HUD
+    const p = this.camera.lookAt;
+    let tl = `Look-at position: x = ${p[0].toFixed(3)}, y = ${p[1].toFixed(3)}, z = ${p[2].toFixed(3)}\n`;
+    tl += `${this.renderer.currentPoints} points loaded\n`;
+
+    if (this.selectedCount === 1 && this.singleSelectedPoint) {
+      tl += `Selected point:\n`;
+      tl += `   x = ${this.singleSelectedPoint.x.toFixed(3)}\n`;
+      tl += `   y = ${this.singleSelectedPoint.y.toFixed(3)}\n`;
+      tl += `   z = ${this.singleSelectedPoint.z.toFixed(3)}\n`;
+      if (this.singleSelectedPoint.v !== undefined) {
+        tl += `   v = ${this.singleSelectedPoint.v.toFixed(3)}\n`;
+      }
+    } else if (this.selectedCount > 1) {
+      tl += `${this.selectedCount} points selected\n`;
+    }
+    this.hudTopLeft.innerText = tl;
+
+    // 2. Bottom-Left HUD
+    const logGridSize = Math.round(Math.log(this.renderer.floorGrid.cellSize) / Math.log(10.0));
+    const lineWeight = this.renderer.floorGrid.lineWeight;
+    const alphaMinor = Math.pow(Math.max(0.0, lineWeight), 0.25).toFixed(2);
+    
+    let bl = `Attribute ${this.currAttributeIndex} of ${this.numAttributes}\n`;
+    bl += `log of grid size: <span style="opacity: ${alphaMinor}">${logGridSize}</span> | <span>${logGridSize + 1}</span>`;
+    this.hudBottomLeft.innerHTML = bl;
+
+    // 3. Bottom-Right HUD
+    let br = `${this.currentFps.toFixed(1)} fps\n`;
+    br += `port ${this.serverPort}`;
+    this.hudBottomRight.innerText = br;
+  }
+
   _startRenderLoop() {
     const mvpMatrix = new Float32Array(16);
 
     const loop = (time) => {
       this.frameCount++;
       if (time - this.lastFpsUpdate >= 1000) {
-        this.lblFps.innerText = Math.round((this.frameCount * 1000) / (time - this.lastFpsUpdate));
+        this.currentFps = (this.frameCount * 1000) / (time - this.lastFpsUpdate);
+        this.lblFps.innerText = Math.round(this.currentFps);
         this.frameCount = 0;
         this.lastFpsUpdate = time;
       }
@@ -309,6 +383,7 @@ class PPTKWebApp {
       this.camera.computeMVPMatrix(mvpMatrix);
 
       this.renderer.render(this.camera, mvpMatrix, 0.015);
+      this._updateHUD();
 
       requestAnimationFrame(loop);
     };
