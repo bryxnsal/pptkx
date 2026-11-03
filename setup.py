@@ -62,6 +62,13 @@ class CMakeBuild(build_ext):
             f'-DCMAKE_BUILD_TYPE=Release',
             f'-DPython3_EXECUTABLE={sys.executable}',
         ]
+        if system_type == 'Windows':
+            base_dir = getattr(sys, 'base_prefix', sys.prefix)
+            libs_dir = os.path.join(base_dir, 'libs')
+            if os.path.exists(libs_dir):
+                cmake_args.append(f'-DPython3_LIBRARY_DIRS={libs_dir.replace(os.sep, "/")}')
+                cmake_args.append(f'-DPython_LIBRARY_DIRS={libs_dir.replace(os.sep, "/")}')
+                cmake_args.append(f'-DCMAKE_LIBRARY_PATH={libs_dir.replace(os.sep, "/")}')
         if 'CMAKE_TOOLCHAIN_FILE' in os.environ:
             cmake_args.append(f"-DCMAKE_TOOLCHAIN_FILE={os.environ['CMAKE_TOOLCHAIN_FILE']}")
         if 'Qt5_DIR' in os.environ:
@@ -74,30 +81,40 @@ class CMakeBuild(build_ext):
         target_pptk = os.path.join(os.path.abspath(self.build_lib), 'pptk')
         built_pptk = os.path.join(build_temp, 'pptk')
 
+        # Helper to find built files (handling both Ninja/Make in built_pptk/... and MSVC in built_pptk/.../Release)
+        def find_file(subpath, filename):
+            p1 = os.path.join(built_pptk, subpath, filename)
+            if os.path.exists(p1):
+                return p1
+            p2 = os.path.join(built_pptk, subpath, 'Release', filename)
+            if os.path.exists(p2):
+                return p2
+            return None
+
         # 1. kdtree
-        kdtree_so = os.path.join(built_pptk, 'kdtree', make_mod('kdtree'))
-        if os.path.exists(kdtree_so):
+        kdtree_so = find_file('kdtree', make_mod('kdtree'))
+        if kdtree_so:
             dest = os.path.join(target_pptk, 'kdtree')
             os.makedirs(dest, exist_ok=True)
             shutil.copy2(kdtree_so, dest)
 
         # 2. vfuncs
-        vfuncs_so = os.path.join(built_pptk, 'vfuncs', make_mod('vfuncs'))
-        if os.path.exists(vfuncs_so):
+        vfuncs_so = find_file('vfuncs', make_mod('vfuncs'))
+        if vfuncs_so:
             dest = os.path.join(target_pptk, 'vfuncs')
             os.makedirs(dest, exist_ok=True)
             shutil.copy2(vfuncs_so, dest)
 
         # 3. estimate_normals
-        en_so = os.path.join(built_pptk, 'processing', 'estimate_normals', make_mod('estimate_normals'))
-        if os.path.exists(en_so):
+        en_so = find_file(os.path.join('processing', 'estimate_normals'), make_mod('estimate_normals'))
+        if en_so:
             dest = os.path.join(target_pptk, 'processing', 'estimate_normals')
             os.makedirs(dest, exist_ok=True)
             shutil.copy2(en_so, dest)
 
         # 4. viewer
-        viewer_bin = os.path.join(built_pptk, 'viewer', make_exe('viewer'))
-        if os.path.exists(viewer_bin):
+        viewer_bin = find_file('viewer', make_exe('viewer'))
+        if viewer_bin:
             dest = os.path.join(target_pptk, 'viewer')
             os.makedirs(dest, exist_ok=True)
             shutil.copy2(viewer_bin, dest)

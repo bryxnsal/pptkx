@@ -72,6 +72,7 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
+          setup-python: false
 
       - name: Install vcpkg dependencies (oneTBB, Eigen3)
         run: |
