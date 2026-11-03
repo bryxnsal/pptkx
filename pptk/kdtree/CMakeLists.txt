@@ -12,6 +12,7 @@ target_include_directories(kdtree PRIVATE
   ${Numpy_INCLUDE_DIRS})
 target_link_libraries(kdtree
   ${TBB_tbb_LIBRARY}
-  ${TBB_tbbmalloc_LIBRARY})
+  ${TBB_tbbmalloc_LIBRARY}
+  ${PYTHON_LIBRARY})
 copy_target(kdtree)
 copy_file(__init__.py)

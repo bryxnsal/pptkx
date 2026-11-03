@@ -65,10 +65,13 @@ class CMakeBuild(build_ext):
         if system_type == 'Windows':
             base_dir = getattr(sys, 'base_prefix', sys.prefix)
             libs_dir = os.path.join(base_dir, 'libs')
+            lib_file = os.path.join(libs_dir, f'python{sys.version_info.major}{sys.version_info.minor}.lib')
             if os.path.exists(libs_dir):
                 cmake_args.append(f'-DPython3_LIBRARY_DIRS={libs_dir.replace(os.sep, "/")}')
-                cmake_args.append(f'-DPython_LIBRARY_DIRS={libs_dir.replace(os.sep, "/")}')
                 cmake_args.append(f'-DCMAKE_LIBRARY_PATH={libs_dir.replace(os.sep, "/")}')
+            if os.path.exists(lib_file):
+                cmake_args.append(f'-DPython3_LIBRARY={lib_file.replace(os.sep, "/")}')
+                cmake_args.append(f'-DPython3_LIBRARIES={lib_file.replace(os.sep, "/")}')
         if 'CMAKE_TOOLCHAIN_FILE' in os.environ:
             cmake_args.append(f"-DCMAKE_TOOLCHAIN_FILE={os.environ['CMAKE_TOOLCHAIN_FILE']}")
         if 'Qt5_DIR' in os.environ:

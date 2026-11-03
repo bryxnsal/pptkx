@@ -8,7 +8,8 @@ target_compile_definitions(estimate_normals PRIVATE -DUSE_TBB)
 target_link_libraries(estimate_normals
   ${TBB_tbb_LIBRARY}
   ${TBB_tbbmalloc_LIBRARY}
-  OpenMP::OpenMP_CXX)
+  OpenMP::OpenMP_CXX
+  ${PYTHON_LIBRARY})
 target_include_directories(estimate_normals PRIVATE
   ../../include
   ../../kdtree/src
