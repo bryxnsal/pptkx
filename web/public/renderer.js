@@ -40,7 +40,8 @@ export class WebGL2PointRenderer {
 
     this.totalCapacity = 0;
     this.currentPoints = 0;
-    this.maxRenderBudget = 2500000;
+    this.drawAllPoints = true; // PPTK Full Render Mode: renders all loaded points
+    this.maxRenderBudget = 50000000; // Allow full rendering up to 50M points without truncation
     this.drawStride = 1;
     this.activeDrawCount = 0;
 
@@ -246,7 +247,10 @@ export class WebGL2PointRenderer {
   }
 
   _updateDrawStride() {
-    if (this.currentPoints > this.maxRenderBudget) {
+    if (this.drawAllPoints) {
+      this.drawStride = 1;
+      this.activeDrawCount = this.currentPoints;
+    } else if (this.currentPoints > this.maxRenderBudget) {
       this.drawStride = Math.ceil(this.currentPoints / this.maxRenderBudget);
       this.activeDrawCount = Math.floor(this.currentPoints / this.drawStride);
     } else {

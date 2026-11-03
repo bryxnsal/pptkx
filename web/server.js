@@ -50,18 +50,49 @@ const server = http.createServer((req, res) => {
     let hasPly = false;
     let plySize = 0;
     let plyFilename = '';
+    let bounds = null;
 
     if (plyPath && fs.existsSync(plyPath)) {
       hasPly = true;
       plySize = fs.statSync(plyPath).size;
       plyFilename = path.basename(plyPath);
+
+      // Compute global bounds once and cache
+      if (!server._cachedBounds) {
+        try {
+          const fd = fs.openSync(plyPath, 'r');
+          let minX = Infinity, maxX = -Infinity;
+          let minY = Infinity, maxY = -Infinity;
+          let minZ = Infinity, maxZ = -Infinity;
+          const chunk = Buffer.alloc(16 * 1000000);
+          let bytesRead = 0;
+          let pos = 142; // offset after standard PLY header
+          while ((bytesRead = fs.readSync(fd, chunk, 0, chunk.length, pos)) > 0) {
+            pos += bytesRead;
+            const count = bytesRead / 16;
+            const f32 = new Float32Array(chunk.buffer, chunk.byteOffset, count * 4);
+            for (let i = 0; i < count; i += 10) { // Fast sample across all 38M points
+              const x = f32[i * 4 + 0];
+              const y = f32[i * 4 + 1];
+              const z = f32[i * 4 + 2];
+              if (x < minX) minX = x; if (x > maxX) maxX = x;
+              if (y < minY) minY = y; if (y > maxY) maxY = y;
+              if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+            }
+          }
+          fs.closeSync(fd);
+          server._cachedBounds = { minX, maxX, minY, maxY, minZ, maxZ };
+        } catch (_) {}
+      }
+      bounds = server._cachedBounds;
     }
 
     res.end(JSON.stringify({
       hasPly,
       plySize,
       plyFilename,
-      port
+      port,
+      bounds
     }));
     return;
   }

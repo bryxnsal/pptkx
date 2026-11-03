@@ -55,6 +55,12 @@ class PPTKWebApp {
       if (res.ok) {
         const data = await res.json();
         if (data.port) this.serverPort = data.port;
+        if (data.bounds) {
+          const b = data.bounds;
+          this.camera.fitBox(b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ);
+          this.renderer.setZRange(b.minZ, b.maxZ);
+          this.renderer.setFloorLevel(b.minZ);
+        }
         if (data.hasPly) {
           this.plySection.style.display = 'block';
           const mb = (data.plySize / (1024 * 1024)).toFixed(0);
