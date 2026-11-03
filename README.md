@@ -73,13 +73,13 @@ From git:
 ```bash
 uv pip install pptkx
 # or from git:
-uv pip install git+https://github.com/bryxnsal/pptk-wayland.git
+uv pip install git+https://github.com/bryxnsal/pptkx.git
 ```
 
 Or clone and install locally:
 ```bash
-git clone https://github.com/bryxnsal/pptk-wayland.git
-cd pptk-wayland
+git clone https://github.com/bryxnsal/pptkx.git
+cd pptkx
 uv pip install pptkx
 # or locally:
 pip install .
@@ -88,8 +88,8 @@ pip install .
 ### Using standard `pip`
 
 ```bash
-git clone https://github.com/bryxnsal/pptk-wayland.git
-cd pptk-wayland
+git clone https://github.com/bryxnsal/pptkx.git
+cd pptkx
 pip install pptkx
 # or locally:
 pip install .

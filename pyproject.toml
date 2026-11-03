@@ -18,5 +18,5 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bryxnsal/pptk-wayland"
-Repository = "https://github.com/bryxnsal/pptk-wayland"
+Homepage = "https://github.com/bryxnsal/pptkx"
+Repository = "https://github.com/bryxnsal/pptkx"
