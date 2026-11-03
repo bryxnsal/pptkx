@@ -39,7 +39,9 @@ class Viewer : public QWindow, protected OpenGLFuncs {
  public:
   explicit Viewer(quint16 clientPort) : QWindow() {
     setSurfaceType(QSurface::OpenGLSurface);
+#ifndef _WIN32
     create();
+#endif
 
     // create OpenGL context
     _context = new QOpenGLContext();

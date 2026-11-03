@@ -14,14 +14,15 @@ def get_cmake_bin():
     if c:
         return c
     # Try virtualenv or python site-packages cmake
-    venv_bin = os.path.join(sys.prefix, "bin", "cmake")
+    venv_bin = os.path.join(sys.prefix, "Scripts", "cmake.exe") if system_type == 'Windows' else os.path.join(sys.prefix, "bin", "cmake")
     if os.path.isfile(venv_bin) and os.access(venv_bin, os.X_OK):
         return venv_bin
     try:
         import cmake
-        c = os.path.join(cmake.CMAKE_BIN_DIR, "cmake")
-        if os.path.isfile(c) and os.access(c, os.X_OK):
-            return c
+        if hasattr(cmake, 'CMAKE_BIN_DIR'):
+            c = os.path.join(cmake.CMAKE_BIN_DIR, "cmake")
+            if os.path.isfile(c) and os.access(c, os.X_OK):
+                return c
     except ImportError:
         pass
     return "cmake"
@@ -53,6 +54,16 @@ class CMakeBuild(build_ext):
 
         for ext in self.extensions:
             self.build_extension(ext, cmake_bin)
+            if self.inplace:
+                src_pptk = os.path.join(ext.sourcedir, 'pptk')
+                build_pptk = os.path.join(os.path.abspath(self.build_lib), 'pptk')
+                if os.path.isdir(build_pptk):
+                    for root, dirs, files in os.walk(build_pptk):
+                        rel = os.path.relpath(root, build_pptk)
+                        target_dir = os.path.join(src_pptk, rel) if rel != '.' else src_pptk
+                        os.makedirs(target_dir, exist_ok=True)
+                        for f in files:
+                            shutil.copy2(os.path.join(root, f), os.path.join(target_dir, f))
 
     def build_extension(self, ext, cmake_bin):
         build_temp = os.path.join(self.build_temp, 'cmake_build')
