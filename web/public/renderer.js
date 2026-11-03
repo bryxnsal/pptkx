@@ -89,6 +89,9 @@ export class WebGL2PointRenderer {
       uniform vec2 u_z_range;
       uniform sampler2D u_lut256;
 
+      uniform int u_draw_stride;
+      uniform int u_start_index;
+
       out vec4 v_color;
 
       vec3 colormapJet(float t) {
@@ -116,6 +119,11 @@ export class WebGL2PointRenderer {
       }
 
       void main() {
+        if (u_draw_stride > 1 && ((gl_VertexID - u_start_index) % u_draw_stride) != 0) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // Discard vertex outside clip space
+          return;
+        }
+
         gl_Position = u_mvp * vec4(a_position, 1.0);
         float dist = max(gl_Position.w, 0.001);
         gl_PointSize = clamp((u_point_size / dist) * u_resolution.y * 0.5, 2.0, 32.0);
@@ -155,6 +163,8 @@ export class WebGL2PointRenderer {
     this.uColorMapMode = gl.getUniformLocation(this.program, 'u_colormap_mode');
     this.uZRange = gl.getUniformLocation(this.program, 'u_z_range');
     this.uLut256 = gl.getUniformLocation(this.program, 'u_lut256');
+    this.uDrawStride = gl.getUniformLocation(this.program, 'u_draw_stride');
+    this.uStartIndex = gl.getUniformLocation(this.program, 'u_start_index');
   }
 
   _initBoxShader() {
@@ -294,7 +304,7 @@ export class WebGL2PointRenderer {
     }
   }
 
-  render(camera, mvpMatrix, pointSize = 0.015) {
+  render(camera, mvpMatrix, pointSize = 0.015, isInteracting = false) {
     const gl = this.gl;
     this.resize();
 
@@ -317,11 +327,22 @@ export class WebGL2PointRenderer {
     if (this.currentPoints > 0) {
       gl.useProgram(this.program);
       gl.uniformMatrix4fv(this.uMVP, false, mvpMatrix);
-      const adjustedPointSize = pointSize * Math.sqrt(this.drawStride);
+
+      // Adaptive PPTK Interaction LOD:
+      // While user drags/rotates/pans/zooms, sample evenly across dataset to maintain 60 FPS
+      let stride = 1;
+      let targetBudget = 2500000;
+      if (isInteracting && this.currentPoints > targetBudget) {
+        stride = Math.ceil(this.currentPoints / targetBudget);
+      }
+
+      const adjustedPointSize = pointSize * (stride > 1 ? Math.sqrt(stride) : 1.0);
       gl.uniform1f(this.uPointSize, adjustedPointSize);
       gl.uniform2f(this.uResolution, this.canvas.width, this.canvas.height);
       gl.uniform1i(this.uColorMapMode, this.activeColorMap);
       gl.uniform2f(this.uZRange, this.minZ, this.maxZ);
+      gl.uniform1i(this.uDrawStride, stride);
+      gl.uniform1i(this.uStartIndex, 0);
 
       // Bind 256-color LUT texture to unit 0
       gl.activeTexture(gl.TEXTURE0);
@@ -329,7 +350,7 @@ export class WebGL2PointRenderer {
       gl.uniform1i(this.uLut256, 0);
 
       gl.bindVertexArray(this.vao);
-      gl.drawArrays(gl.POINTS, 0, this.activeDrawCount);
+      gl.drawArrays(gl.POINTS, 0, this.currentPoints);
       gl.bindVertexArray(null);
     }
 

@@ -43,6 +43,9 @@ class PPTKWebApp {
 
     this.frameCount = 0;
     this.lastFpsUpdate = performance.now();
+    this.needsRender = true;
+    this.fineRenderTimer = null;
+    this.isInteracting = false;
 
     this._checkServerConfig();
     this._setupEvents();
@@ -100,6 +103,7 @@ class PPTKWebApp {
         const count = e.data.chunkCount;
         this.renderer.uploadChunkInterleaved(e.data.buffer, currentOffset, count);
         currentOffset += count;
+        this.requestRender();
 
         if (targetPoints > 0) {
           const pct = Math.round((currentOffset / targetPoints) * 100);
@@ -124,6 +128,7 @@ class PPTKWebApp {
           this.renderer.setZRange(b.minZ, b.maxZ);
           this.renderer.setFloorLevel(b.minZ);
         }
+        this.requestRender();
 
         this.streamWorker.terminate();
         this.streamWorker = null;
@@ -166,11 +171,15 @@ class PPTKWebApp {
         this.isSelecting = true;
         this.selectionStartNdc = this._win2ndc(e.clientX, e.clientY);
         this.renderer.setSelectionBox(true, this.selectionStartNdc, this.selectionStartNdc);
+        this.requestRender();
         return;
       }
 
       this.isDragging = true;
+      this.isInteracting = true;
+      if (this.fineRenderTimer) clearTimeout(this.fineRenderTimer);
       this.camera.save();
+      this.requestRender();
     });
 
     // PPTK mouseReleaseEvent
@@ -193,6 +202,7 @@ class PPTKWebApp {
         } else {
           this.rowSelection.style.display = 'none';
         }
+        this.requestRender();
         return;
       }
 
@@ -201,11 +211,13 @@ class PPTKWebApp {
         this.selectedCount = 0;
         this.singleSelectedPoint = null;
         this.rowSelection.style.display = 'none';
+        this.requestRender();
       }
 
       if (this.isDragging) {
         this.isDragging = false;
         this.camera.save();
+        this.triggerFineRenderDelayed(300);
       }
     });
 
@@ -214,6 +226,7 @@ class PPTKWebApp {
       if (this.isSelecting) {
         const currentNdc = this._win2ndc(e.clientX, e.clientY);
         this.renderer.setSelectionBox(true, this.selectionStartNdc, currentNdc);
+        this.requestRender();
         return;
       }
 
@@ -229,6 +242,8 @@ class PPTKWebApp {
       } else {
         this.camera.rotate(dx, dy);
       }
+      this.isInteracting = true;
+      this.requestRender();
     });
 
     // PPTK wheelEvent: _camera.zoom(delta / 120.0f)
@@ -237,6 +252,9 @@ class PPTKWebApp {
       const steps = -e.deltaY / 100.0;
       this.camera.zoom(steps);
       this.camera.save();
+      this.isInteracting = true;
+      this.requestRender();
+      this.triggerFineRenderDelayed(300);
     }, { passive: false });
 
     // Keyboard events matching native PPTK
@@ -269,6 +287,7 @@ class PPTKWebApp {
           this.currAttributeIndex = (this.currAttributeIndex % this.numAttributes) + 1;
         }
       }
+      this.requestRender();
     });
   }
 
@@ -373,6 +392,18 @@ class PPTKWebApp {
     this.hudBottomLeft.innerText = bl;
   }
 
+  requestRender() {
+    this.needsRender = true;
+  }
+
+  triggerFineRenderDelayed(ms = 300) {
+    if (this.fineRenderTimer) clearTimeout(this.fineRenderTimer);
+    this.fineRenderTimer = setTimeout(() => {
+      this.isInteracting = false;
+      this.needsRender = true;
+    }, ms);
+  }
+
   _startRenderLoop() {
     const mvpMatrix = new Float32Array(16);
 
@@ -385,12 +416,18 @@ class PPTKWebApp {
         this.lastFpsUpdate = time;
       }
 
-      const aspect = this.canvas.clientWidth / (this.canvas.clientHeight || 1);
-      this.camera.setAspectRatio(aspect);
-      this.camera.computeMVPMatrix(mvpMatrix);
+      if (this.needsRender) {
+        const aspect = this.canvas.clientWidth / (this.canvas.clientHeight || 1);
+        this.camera.setAspectRatio(aspect);
+        this.camera.computeMVPMatrix(mvpMatrix);
 
-      this.renderer.render(this.camera, mvpMatrix, 0.015);
-      this._updateHUD();
+        this.renderer.render(this.camera, mvpMatrix, 0.015, this.isInteracting);
+        this._updateHUD();
+
+        if (!this.isInteracting) {
+          this.needsRender = false;
+        }
+      }
 
       requestAnimationFrame(loop);
     };
