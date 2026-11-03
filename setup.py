@@ -122,6 +122,33 @@ class CMakeBuild(build_ext):
             os.makedirs(dest, exist_ok=True)
             shutil.copy2(viewer_bin, dest)
 
+        # 5. On Windows, bundle TBB DLLs and run windeployqt on viewer.exe if available
+        if system_type == 'Windows':
+            tbb_bin_dir = 'C:/vcpkg/installed/x64-windows/bin'
+            if os.path.isdir(tbb_bin_dir):
+                libs_target = os.path.join(target_pptk, 'libs')
+                os.makedirs(libs_target, exist_ok=True)
+                for dll in os.listdir(tbb_bin_dir):
+                    if dll.lower().endswith('.dll'):
+                        shutil.copy2(os.path.join(tbb_bin_dir, dll), libs_target)
+                        # Also place in viewer dir
+                        shutil.copy2(os.path.join(tbb_bin_dir, dll), os.path.join(target_pptk, 'viewer'))
+
+            # Run windeployqt on viewer.exe
+            installed_viewer_exe = os.path.join(target_pptk, 'viewer', 'viewer.exe')
+            windeployqt_bin = shutil.which('windeployqt')
+            if os.path.exists(installed_viewer_exe) and windeployqt_bin:
+                try:
+                    subprocess.check_call([
+                        windeployqt_bin,
+                        '--release',
+                        '--no-compiler-runtime',
+                        '--no-translations',
+                        installed_viewer_exe
+                    ])
+                except Exception as e:
+                    print(f"Warning: windeployqt failed: {e}")
+
 setup(
     name='pptkx',
     version='0.1.2',
@@ -132,11 +159,11 @@ setup(
     ext_modules=[CMakeExtension('pptk._cmake_build')],
     cmdclass={'build_ext': CMakeBuild},
     package_data={
-        'pptk': ['LICENSE'],
+        'pptk': ['LICENSE', 'libs/*.dll'],
         'pptk.kdtree': [make_mod('kdtree')],
         'pptk.processing.estimate_normals': [make_mod('estimate_normals')],
         'pptk.vfuncs': [make_mod('vfuncs')],
-        'pptk.viewer': [make_exe('viewer')],
+        'pptk.viewer': [make_exe('viewer'), '*.dll', 'platforms/*.dll', 'styles/*.dll'],
     },
     include_package_data=True,
     zip_safe=False,
