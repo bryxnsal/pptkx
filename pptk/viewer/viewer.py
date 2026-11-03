@@ -50,13 +50,13 @@ class viewer:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('localhost', 0))
         s.listen(0)
+        viewer_exe = os.path.join(_viewer_dir, 'viewer.exe' if os.name == 'nt' else 'viewer')
         self._process = subprocess.Popen(
-            [os.path.join(_viewer_dir, 'viewer'), str(s.getsockname()[1])],
+            [viewer_exe, str(s.getsockname()[1])],
             stdout=subprocess.PIPE,
             stderr=(None if debug else subprocess.PIPE))
         if debug:
-            print ('Started viewer process: %s' \
-                % os.path.join(_viewer_dir, 'viewer'))
+            print ('Started viewer process: %s' % viewer_exe)
         x = s.accept()
         self._portNumber = struct.unpack('H', self._process.stdout.read(2))[0]
         # self._portNumber = struct.unpack('H',x[0].recv(2))[0]

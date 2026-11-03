@@ -2,9 +2,16 @@
 #include <QSurfaceFormat>
 #include <QDebug>
 #include <iostream>
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
 #include "viewer.h"
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+  _setmode(_fileno(stdout), _O_BINARY);
+#endif
   if (argc != 2) {
     qDebug() << "usage: viewer <port number>";
     return 1;
